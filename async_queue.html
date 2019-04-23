@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+
+<body>
+    <button id="domA">事件A(4秒后执行)</button><br/><br/>
+    <button id="domB">事件B(1秒后执行)</button><br/><br/>
+    <button id="domC">事件C(2秒后执行)</button>
+</body>
+
+<script>
+/**
+ * 任务队列
+ */
+function Queue() {
+    this.store = []
+}
+Queue.prototype = {
+    addTask(task) {
+        this.store.push(task)
+    },
+    popTask() {
+        return this.store.shift()
+    },
+    isEmpty() {
+        if (this.store.length <= 0) return true
+        else return false
+    }
+}
+
+// const events = new Queue()
+// let flag = false
+// const run = async () => {
+//     flag = true
+//     while (!events.isEmpty()) {
+//         let val = await events.popTask();
+//         console.log('反馈顺序=>', val)
+//     }
+//     flag = false;
+// }
+
+/**
+ * 高仿Promise
+ */
+function Future() {
+    this.queue = new Queue()
+    this.flag = false
+}
+Future.syncTasks = function(arr) {
+    let rnArr = []
+    const queue = new Queue()
+    let flag = false
+
+    return new Promise(async (resolve, reject) => {
+        if (arr && arr.length > 0) {
+            for (let i = 0; i < arr.length; i++) {
+                queue.addTask(arr[i])
+                flag = true
+                while (!queue.isEmpty()) {
+                    let val = await queue.popTask()
+                    rnArr.push(val)
+                }
+                flag = false
+            }
+            resolve(rnArr)
+        } else {
+            reject('syncTasks函数参数不得为空或空数组')
+        }
+    })
+}
+Future.prototype.ioTasks = async function(task) {
+    this.queue.addTask(task)
+    if (!this.flag) {
+        this.flag = true
+        while (!this.queue.isEmpty()) {
+            let val = await this.queue.popTask()
+            console.log('反馈顺序=>', val)
+        }
+        this.flag = false
+    }
+}
+
+
+/**
+ * 测试
+ */
+
+const domA = document.querySelector('#domA')
+const domB = document.querySelector('#domB')
+const domC = document.querySelector('#domC')
+//模拟ajax
+let value;
+const ajaxA = () =>new Promise((resolve, reject) => {
+    setTimeout(() => {
+        console.log('A任务入栈')
+        resolve('A任务出栈')
+    }, 4000)
+})
+const ajaxB = () => new Promise((resolve, reject) =>{
+    setTimeout(() => {
+        console.log('B任务入栈')
+        resolve('B任务出栈')
+    }, 1000)
+})
+const ajaxC = () => new Promise((resolve, reject) =>{
+    setTimeout(() => {
+        console.log('C任务入栈')
+        resolve('C任务出栈')
+    }, 2000)
+})
+/*********************************************************************/
+
+/// 按点击事件顺序出栈
+let future = new Future()
+domA.addEventListener('click', () => {
+    future.ioTasks(ajaxA())
+})
+
+domB.addEventListener('click', () => {
+    future.ioTasks(ajaxB())
+})
+domC.addEventListener('click', () => {
+    future.ioTasks(ajaxC())
+})
+
+/// 按数组中异步方法的顺序出栈
+Future.syncTasks([
+    ajaxA(),
+    ajaxB(),
+    ajaxC()
+]).then((res) => {
+    console.log('res:', res)
+}, (err) => {
+    console.log('err:', err)
+}).catch((error) => {
+    console.log('Failed:', error)
+})
+</script>
+</html>
